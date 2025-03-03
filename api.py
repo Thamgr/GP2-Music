@@ -1,6 +1,4 @@
 import requests
-import pandas as pd
-import time
 import tqdm
 import re
 
@@ -17,12 +15,23 @@ class LastFMApi():
 
     decade_pattern = r'^\d{2}s$'
     year_pattern = r'^\d{4}$'
+    forbidden_tags = ['MySpotigramBot']
+    decade_conversion = {'20s' : '20', '10s': '20', '00s': '20'}
 
     pages_default = 100
     limit_default = 1000
 
     def __init__(self):
         self.cached_responses = {}
+
+    def safe_get(self, data, keys, default=None):
+        try:
+            result = data
+            for key in keys:
+                result = result[key]
+            return result
+        except:
+            return default
 
     def get_response(self, url):
         if url in self.cached_responses:
@@ -31,8 +40,8 @@ class LastFMApi():
         if response.status_code == 200:
             data = response.json()
             if 'error' in data:
+                print(data)
                 return None
-            print('update cache')
             self.cached_responses[url] = response.json()
             return data
         else:
@@ -45,14 +54,18 @@ class LastFMApi():
         for page in tqdm.tqdm(range(pages)):
             endpoint = self.chart_gettoptracks.format(api_key=self.API_KEY, limit=limit, page=page + 1)
             response = self.get_response(endpoint)
-            if not response:
-                continue
-            for idx, track in enumerate(response['tracks']['track']):
+            if len(response['tracks']['track']) == 0:
+                break
+            for idx, track in enumerate(self.safe_get(response, ['tracks', 'track'], [])):
+                track_name = self.safe_get(track, ['name'])
+                artist = self.safe_get(track, ['artist', 'name'])
+                listeners = self.safe_get(track, ['listeners'])
+                position = page * limit + idx + 1
                 data.append({
-                    'track_name': track['name'],
-                    'artist': track['artist']['name'],
-                    'listeners': track.get('listeners', '-'),
-                    'position': page * limit + idx,
+                    'track_name': track_name,
+                    'artist': artist,
+                    'listeners': listeners,
+                    'position': position,
                 })
         return data
 
@@ -62,15 +75,19 @@ class LastFMApi():
         for page in tqdm.tqdm(range(pages)):
             endpoint = self.geo_gettoptracks.format(country=country, api_key=self.API_KEY, limit=limit, page=page + 1)
             response = self.get_response(endpoint)
-            if not response:
-                continue
+            if len(self.safe_get(response, ['tracks', 'track'], [])) == 0:
+                break
             country_code = country.lower().replace(' ', '_')
-            for idx, track in enumerate(response['tracks']['track']):
+            for idx, track in enumerate(self.safe_get(response, ['tracks', 'track'], [])):
+                track_name = self.safe_get(track, ['name'])
+                artist = self.safe_get(track, ['artist', 'name'])
+                listeners = self.safe_get(track, ['listeners'])
+                position = page * limit + idx + 1
                 data.append({
-                    'track_name': track['name'],
-                    'artist': track['artist']['name'],
-                    'listeners': track.get('listeners', '-'),
-                    '{}_position'.format(country): page * limit + idx,
+                    'track_name': track_name,
+                    'artist': artist,
+                    'listeners': listeners,
+                    '{}_position'.format(country): position,
                 })
         return data
 
@@ -78,11 +95,15 @@ class LastFMApi():
     def get_track_info(self, artist, track):
         endpoint = self.track_getInfo.format(artist=artist, track=track, api_key=self.API_KEY)
         response = self.get_response(endpoint)
-        if not response:
-            return {}
+        playcount = self.safe_get(response, ['track', 'playcount'])
+        toptag = self.safe_get(response, ['track', 'toptags', 'tag', 0, 'name'])
+        if toptag in self.forbidden_tags:
+            toptag = self.safe_get(response, ['track', 'toptags', 'tag', 1, 'name'])
+        album = self.safe_get(response, ['track', 'album', 'title'])
         data = {
-            'playcount': response['track']['playcount'],
-            'toptag': response['track']['toptags']['tag'][0]['name'],
+            'playcount': playcount,
+            'toptag': toptag,
+            'album': album,
         }
         return data
 
@@ -90,10 +111,9 @@ class LastFMApi():
     def get_tag_info(self, tag):
         endpoint = self.tag_getInfo.format(tag=tag, api_key=self.API_KEY)
         response = self.get_response(endpoint)
-        if not response:
-            return {}
+        tag_summary = self.safe_get(response, ['tag', 'wiki', 'summary'])
         data = {
-            'tag_summary': response['tag']['wiki']['summary'],
+            'tag_summary': tag_summary,
         }
         return data
 
@@ -101,19 +121,20 @@ class LastFMApi():
     def get_album_info(self, artist, album):
         endpoint = self.album_getInfo.format(artist=artist, album=album, api_key=self.API_KEY)
         response = self.get_response(endpoint)
-        if not response:
-            return {}
-        decade = None
-        for tag in response['album']['tags']['tag']:
+        decade = '2020s'
+        name = self.safe_get(response, ['album', 'name'])
+        for tag in self.safe_get(response, ['album', 'tags', 'tag'], []):
+            if not isinstance(tag, list):
+                continue
             if re.match(self.decade_pattern, tag['name']):
-                decade = tag
+                decade = self.decade_conversion.get(tag, '19') + tag
                 break
             if re.match(self.year_pattern, tag['name']):
                 year = int(tag['name'])
-                decade = str((year - year % 10) % 100) + 's'
+                decade = str(year - year % 10) + 's'
                 break
         data = {
             'decade': decade,
-            'name': response['album']['name'],
+            'name': name,
         }
         return data

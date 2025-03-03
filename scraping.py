@@ -57,6 +57,8 @@ class GenreScraper():
         return [link.get('data-tag').lower() for link in links]
 
     def get_genre_popularity(self, genre, weighted=0, verbose=True):
+        if not genre:
+            return {}
         verbose &= self.verbose
         url = self.get_genre_stats_url(genre)
         if verbose:
@@ -81,7 +83,15 @@ class GenreScraper():
 
         return decades_data
 
+    def get_genre_popularity_by_decade(self, genre, decade, weighted=0):
+        if not genre:
+            return None
+        decades_data = self.get_genre_popularity(genre, weighted)
+        return decades_data.get(decade, None)
+
     def get_genre_popularity_by_year(self, genre, year, weighted=0):
+        if not genre:
+            return None
         decades_data = self.get_genre_popularity(genre, weighted)
         decade = str(year - year % 10) + 's'
-        return decades_data.get(decade, 0)
+        return decades_data.get(decade, None)
