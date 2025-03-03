@@ -50,7 +50,7 @@ class GenreScraper():
         html_content = response.text
         if verbose:
             logging.info('got response with status: {}'.format(response.status_code))
-        soup = BeautifulSoup(html_content, "html.parser")
+        soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.find_all(class_='tag-cloud-link')
         if verbose:
             logging.info('found {} genres'.format(len(links)))
@@ -67,7 +67,7 @@ class GenreScraper():
             logging.info('got response with status: {}'.format(response.status_code))
         if verbose:
             logging.info('start parsing')
-        soup = BeautifulSoup(html_content, "html.parser")
+        soup = BeautifulSoup(html_content, 'html.parser')
         decade_elements = soup.find_all('div', class_='text-bar-decade')
 
         decades_data = {}
