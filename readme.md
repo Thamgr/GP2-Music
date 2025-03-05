@@ -10,7 +10,7 @@
 - decade (object) — десятилетие, к которому относится трек;
 - genre (object) — жанр трека;
 - listeners (int64) — количество слушателей;
-- playcount (float64) — общее количество прослушиваний;
+- playcount (int64) — общее количество прослушиваний;
 - genre_summary (object) — описание жанра;
 - genre_popularity (float64) — уровень популярности жанра;
 - world_position (float64) — позиция трека в мировом чарте;
