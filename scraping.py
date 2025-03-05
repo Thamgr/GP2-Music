@@ -24,18 +24,20 @@ class GenreScraper():
                     popularity_data[decade] = []
                 popularity_data[decade].append(decade_data[decade])
         for decade in popularity_data:
-            self.weights[decade] = sum(popularity_data[decade]) / len(popularity_data)
+            self.weights[decade] = sum(popularity_data[decade]) / len(popularity_data[decade])
         if self.verbose:
             logging.info('successfully initialized')
 
-    def get_response(self, url):
+    def get_response(self, url, verbose=True):
+        verbose &= self.verbose
         if url in self.cached_responses:
             return self.cached_responses[url]
         response = requests.get(url=url, headers=self.headers)
         if response.status_code == 200:
             self.cached_responses[url] = response
         else:
-            logging.warn('got response with code: {}'.format(response.status_code))
+            if verbose:
+                logging.warn('got response with code: {}'.format(response.status_code))
         return response
 
     def get_genre_stats_url(self, genre):
